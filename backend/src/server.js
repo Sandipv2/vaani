@@ -1,7 +1,13 @@
-import express from "express"
+import { ENV } from "./config/env.js";
+import { connectDB } from "./config/db.js";
+import { app } from "./app.js";
 
-const app = express()
-
-app.listen(3000, () => {
-    console.log(`Server is running at port 3000`);
+connectDB()
+.then(() => {
+    app.listen(ENV.PORT, () => {
+        console.log(`Server is running at port: ${ENV.PORT}`)
+    })
+})
+.catch((err) => {
+    console.log("MongoDB Connection Failed: ",err)
 })
