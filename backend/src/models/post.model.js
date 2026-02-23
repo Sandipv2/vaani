@@ -1,5 +1,21 @@
 import mongoose, { Schema } from "mongoose";
 
+const mediaSchema = new Schema({
+    url: {
+        type: String,
+        required: true,
+    },
+    type: {
+        type: String,
+        enum: ["image", "video"],
+        required: true,
+    },
+    publicId: {
+        type: String,
+        required: true,
+    }
+})
+
 const postSchema = new Schema(
     {
         user: {
@@ -11,14 +27,7 @@ const postSchema = new Schema(
             type: String,
             maxLength: 280,
         },
-        image: {
-            type: String,
-            default: "",
-        },
-        video: {
-            type: String,
-            default: "",
-        },
+        media: [ mediaSchema ],
         likes: [
             {
                 type: Schema.Types.ObjectId,

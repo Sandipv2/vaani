@@ -14,7 +14,16 @@ app.get('/', (req,res) => {
 
 // Routes import
 import userRouter from "./routes/user.route.js";
+import postRouter from "./routes/post.route.js"
 
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/posts", postRouter);
+
+app.use((err, req, res) => {
+    console.error("Unhandled error:", err);
+    res.status(500).json({
+        error: err.message || "Internal server error"
+    });
+})
 
 export { app }
