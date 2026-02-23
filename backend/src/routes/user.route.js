@@ -1,9 +1,16 @@
 import { Router } from "express";
-import { followUser, getCurrentUser, getUserPofile, syncUser, updateProfile } from "../controllers/user.controller.js";
+import { 
+    followUser, 
+    getCurrentUser, 
+    getUserPofile, 
+    syncUser,
+    updateProfile 
+} from "../controllers/user.controller.js";
 import { protectRoute } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
+// public routes
 router.get("/profile/:username", getUserPofile);
 
 // Protected route 
