@@ -2,7 +2,10 @@ import { useSocialAuth } from "@/hooks/useSocialAuth";
 import { Image, TouchableOpacity, View, Text, ActivityIndicator } from "react-native";
 
 export default function Index() {
-  const { isLoading, handleSocialAuth } = useSocialAuth();
+  const { loadingStrategy, handleSocialAuth } = useSocialAuth();
+  const isGoogleLoading = loadingStrategy === "oauth_google";
+  const isAppleLoading = loadingStrategy === "oauth_apple";
+  const isLoading = loadingStrategy !== null;
 
   return (
     <View className="flex-1 justify-content">
@@ -29,7 +32,7 @@ export default function Index() {
                 elevation: 2,
               }}
             >
-              {isLoading ? (
+              {isGoogleLoading ? (
                 <ActivityIndicator color="#4285F4" className="size-10" />
               ) : (
                 <View className="flex-row items-center justify-center">
@@ -55,7 +58,7 @@ export default function Index() {
                 elevation: 2,
               }}
             >
-              {isLoading ? (
+              {isAppleLoading ? (
                 <ActivityIndicator color="#4285F4" className="size-10" />
               ) : (
                 <View className="flex-row items-center justify-center">
