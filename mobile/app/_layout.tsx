@@ -12,7 +12,7 @@ if (!publishableKey) {
 export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <Stack>
+      <Stack screenOptions={{headerShown: false}}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       </Stack>
     </ClerkProvider>
