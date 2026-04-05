@@ -8,8 +8,8 @@ import { ENV } from "./config/env.js";
 const app = express();
 
 app.use(cors());
-app.use(arcjetMiddleware);
 app.use(clerkMiddleware());
+app.use(arcjetMiddleware);
 app.use(express.json());
 
 app.get("/", (req, res) => {

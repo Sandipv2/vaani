@@ -2,11 +2,20 @@ import { aj } from "../config/arcjet.js";
 
 export const arcjetMiddleware = async (req, res, next) => {
     try {
+        const auth = typeof req.auth === "function" ? req.auth() : null;
+        const isAuthenticated = Boolean(auth?.isAuthenticated);
+
         const decision = await aj.protect(req, {
             requested: 1, // each request consumes 1 token
         });
 
         if (decision.isDenied()) {
+            // Native app requests can be flagged as bots. If Clerk has already
+            // authenticated the request, let the protected route handle it.
+            if (decision.reason.isBot() && isAuthenticated) {
+                return next();
+            }
+
             if (decision.reason.isRateLimit()) {
                 return res.status(429).json({
                     error: "Too many requests",
