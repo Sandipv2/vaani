@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from "axios";
 import { useAuth } from "@clerk/expo";
 
-const API_BASE_URL = `${process.env.EXPO_API_BASE_URL}/api/v1` || "https://vaani-coral.vercel.app/api/v1";
+const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1` || "https://vaani-coral.vercel.app/api/v1";
 
 export const createApiClient = (getToken: () => Promise<string | null>): AxiosInstance => {
     const api = axios.create({ baseURL: API_BASE_URL });
