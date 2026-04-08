@@ -5,6 +5,18 @@ import User from "../models/user.model.js";
 import Comment from "../models/comment.model.js";
 import cloudinary from "../config/cloudinary.js";
 
+const deletePostMediaFromCloudinary = async (media = []) => {
+    for (const item of media) {
+        if (!item?.publicId) {
+            continue;
+        }
+
+        await cloudinary.uploader.destroy(item.publicId, {
+            resource_type: item.type === "video" ? "video" : "image",
+        });
+    }
+};
+
 const getPosts = asyncHandler(async (req, res) => {
     const posts = await Post.find()
         .sort({ createdAt: -1 })
@@ -182,11 +194,24 @@ const deletePost = asyncHandler(async (req, res) => {
         });
     }
 
+    try {
+        await deletePostMediaFromCloudinary(post.media);
+    } catch (error) {
+        console.log("Cloudinary delete error:", error);
+        return res.status(400).json({
+            error: "Failed to delete post media"
+        });
+    }
+
     // delete all comments on this post
     await Comment.deleteMany({ post: postId });
 
     // delete the post
     await Post.findByIdAndDelete(postId);
+
+    res.status(200).json({
+        message: "Post deleted successfully"
+    });
 })
 
 

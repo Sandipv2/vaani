@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as VideoThumbnails from "expo-video-thumbnails";
-import { useApiClient } from "../utils/api";
+import { postApi, useApiClient } from "../utils/api";
 
 export type SelectedFile = {
     uri: string;
@@ -71,23 +71,8 @@ export const useCreatePost = () => {
     const queryClient = useQueryClient();
 
     const createPostMutation = useMutation({
-        mutationFn: async (postData: { content: string; media?: SelectedFile[] }) => {
-            const formData = new FormData();
-
-            if (postData.content) formData.append("content", postData.content);
-
-            postData.media?.forEach((file) => {
-                formData.append("media", {
-                    uri: file.uri,
-                    name: file.name,
-                    type: file.type,
-                } as any);
-            });
-
-            return api.post("/posts", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-        },
+        mutationFn: async (postData: { content: string; media?: SelectedFile[] }) =>
+            postApi.createPost(api, postData),
         onSuccess: () => {
             setContent("");
             setSelectedMedia([]);
