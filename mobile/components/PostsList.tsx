@@ -9,6 +9,8 @@ const PostsList = ({ username }: { username?: string }) => {
   const { posts, isLoading, error, refetch, toggleLike, deletePost, checkIsLiked } =
     usePosts(username);
 
+    console.log(posts[0])
+
   if (isLoading) {
     return (
       <View className="p-8 items-center">
@@ -38,7 +40,7 @@ const PostsList = ({ username }: { username?: string }) => {
   }
 
   return (
-    <>
+    <View className="pb-5">
       {posts.map((post: Post) => (
         <PostCard
           key={post._id}
@@ -50,7 +52,7 @@ const PostsList = ({ username }: { username?: string }) => {
           isLiked={checkIsLiked(post.likes, currentUser)}
         />
       ))}
-    </>
+    </View>
   );
 };
 

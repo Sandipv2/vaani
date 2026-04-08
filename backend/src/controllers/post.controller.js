@@ -20,7 +20,7 @@ const deletePostMediaFromCloudinary = async (media = []) => {
 const getPosts = asyncHandler(async (req, res) => {
     const posts = await Post.find()
         .sort({ createdAt: -1 })
-        .populate("user", "usrname firstName lastName profilePicture")
+        .populate("user", "username firstName lastName profilePicture")
         .populate({
             path: "comments",
             populate: {

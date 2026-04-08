@@ -26,23 +26,8 @@ const normalizeMedia = (post: any): PostMedia[] => {
 };
 
 const normalizePost = (post: any): Post => {
-    const normalizedUsername = String(post.user?.username || post.user?.usrname || "").trim();
-    const fallbackUsername =
-        normalizedUsername ||
-        String(
-            [post.user?.firstName, post.user?.lastName]
-                .filter(Boolean)
-                .join("")
-                .toLowerCase()
-        ).trim() ||
-        `user${String(post.user?._id || "").slice(-6)}`;
-
     return {
         ...post,
-        user: {
-            ...post.user,
-            username: fallbackUsername,
-        },
         media: normalizeMedia(post),
     };
 };
