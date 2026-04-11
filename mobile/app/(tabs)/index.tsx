@@ -13,7 +13,7 @@ const HomeScreen = () => {
 
       <View className="relative items-center justify-center px-4 py-3 border-b border-gray-100">
         <Image
-          source={require('../../assets/images/vaani_logo_color.png')}
+          source={require('../../assets/images/vaani_logo.png')}
           className="w-20 h-8"
           resizeMode="contain"
         />
