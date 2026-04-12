@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/vaani_icon.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.Vaani"
     },
     "web": {
       "output": "static",
