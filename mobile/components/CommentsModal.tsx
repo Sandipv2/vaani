@@ -1,8 +1,9 @@
 import { useComments } from "@/hooks/useComments";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { Post } from "@/types";
+import { Post, PostMedia } from "@/types";
 import { formatDate } from "@/utils/formatters";
 import { Feather } from "@expo/vector-icons";
+import { useVideoPlayer, VideoView } from "expo-video";
 import {
     Alert,
     View,
@@ -13,6 +14,7 @@ import {
     Image,
     TextInput,
     ActivityIndicator,
+    useWindowDimensions,
 } from "react-native";
 
 interface CommentsModalProps {
@@ -20,6 +22,27 @@ interface CommentsModalProps {
     onClose: () => void;
 }
 
+const PostMediaItem = ({ media }: { media: PostMedia }) => {
+    const player = useVideoPlayer(media.type === "video" ? media.url : null, (videoPlayer) => {
+        videoPlayer.pause();
+    });
+
+    if (media.type === "video") {
+        return (
+            <View className="w-full h-48 rounded-2xl mb-3 overflow-hidden bg-black">
+                <VideoView player={player} nativeControls style={{ width: "100%", height: "100%" }} />
+            </View>
+        );
+    }
+
+    return (
+        <Image
+            source={{ uri: media.url }}
+            className="w-full h-48 rounded-2xl mb-3"
+            resizeMode="cover"
+        />
+    );
+};
 
 const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
     const {
@@ -31,6 +54,7 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
         isDeletingComment,
     } = useComments();
     const { currentUser } = useCurrentUser();
+    const { width: screenWidth } = useWindowDimensions();
 
     const handleClose = () => {
         onClose();
@@ -47,6 +71,14 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
             },
         ]);
     };
+
+    const mediaItems = selectedPost?.media?.length
+        ? selectedPost.media
+        : selectedPost?.image
+            ? [{ url: selectedPost.image, type: "image" as const }]
+            : [];
+    const slideGap = 3;
+    const sliderWidth = screenWidth - 56;
 
     return (
         <Modal
@@ -88,12 +120,26 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
                                     </Text>
                                 )}
 
-                                {selectedPost.image && (
-                                    <Image
-                                        source={{ uri: selectedPost.image }}
-                                        className="w-full h-48 rounded-2xl mb-3"
-                                        resizeMode="cover"
-                                    />
+                                {mediaItems.length > 0 && (
+                                    <View className="mb-3">
+                                        <ScrollView
+                                            horizontal
+                                            showsHorizontalScrollIndicator={false}
+                                            snapToInterval={sliderWidth + slideGap}
+                                            decelerationRate="fast"
+                                            disableIntervalMomentum
+                                            contentContainerStyle={{ paddingRight: slideGap }}
+                                        >
+                                            {mediaItems.map((media, index) => (
+                                                <View
+                                                    key={`${media.publicId || media.url}-${index}`}
+                                                    style={{ width: sliderWidth, marginRight: slideGap }}
+                                                >
+                                                    <PostMediaItem media={media} />
+                                                </View>
+                                            ))}
+                                        </ScrollView>
+                                    </View>
                                 )}
                             </View>
                         </View>
