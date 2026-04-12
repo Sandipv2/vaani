@@ -3,6 +3,8 @@ import { usePosts } from "@/hooks/usePosts";
 import { Post } from "@/types";
 import { View, Text, ActivityIndicator, TouchableOpacity } from "react-native";
 import PostCard from "./PostCard";
+import CommentsModal from "./CommentsModal";
+import { useState } from "react";
 
 const PostsList = ({ username }: { username?: string }) => {
   const { currentUser } = useCurrentUser();
@@ -15,8 +17,10 @@ const PostsList = ({ username }: { username?: string }) => {
     toggleLike,
     deletePost,
     checkIsLiked,
-  } =
-    usePosts(username);
+  } = usePosts(username);
+
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const selectedPost = selectedPostId ? posts.find((p: Post) => p._id === selectedPostId) : null;
 
   if (isLoading) {
     return (
@@ -66,11 +70,13 @@ const PostsList = ({ username }: { username?: string }) => {
           post={post}
           onLike={toggleLike}
           onDelete={deletePost}
-          onComment={() => {}}
+          onComment={(selectedPost) => setSelectedPostId(selectedPost._id)}
           currentUser={currentUser}
           isLiked={checkIsLiked(post.likes, currentUser)}
         />
       ))}
+
+      <CommentsModal selectedPost={selectedPost} onClose={() => setSelectedPostId(null)} />
     </View>
   );
 };
