@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Post, PostMedia, User } from "@/types";
 import { formatDate, formatNumber } from "@/utils/formatters";
 import { AntDesign, Feather } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent } from "expo";
 import {
   View,
   Text,
@@ -33,13 +34,28 @@ const PostMediaItem = ({
   type: "image" | "video";
   width: number;
 }) => {
+  const [aspectRatio, setAspectRatio] = useState(1);
   const player = useVideoPlayer(type === "video" ? url : null, (videoPlayer) => {
     videoPlayer.pause();
   });
+  const sourceLoad = useEvent(player, "sourceLoad", null);
+
+  useEffect(() => {
+    if (type === "image") {
+      Image.getSize(url, (w, h) => h > 0 && setAspectRatio(w / h));
+    }
+  }, [type, url]);
+
+  useEffect(() => {
+    const track = sourceLoad?.availableVideoTracks?.[0];
+    if (type === "video" && track?.size?.height) {
+      setAspectRatio(track.size.width / track.size.height);
+    }
+  }, [sourceLoad, type]);
 
   if (type === "video") {
     return (
-      <View style={{ width }} className="h-64 rounded-2xl overflow-hidden bg-black">
+      <View style={{ width, aspectRatio }} className="rounded-2xl overflow-hidden bg-black">
         <VideoView player={player} nativeControls style={{ width: "100%", height: "100%" }} />
       </View>
     );
@@ -48,8 +64,8 @@ const PostMediaItem = ({
   return (
     <Image
       source={{ uri: url }}
-      style={{ width, height: 256, borderRadius: 16 }}
-      resizeMode="cover"
+      style={{ width, aspectRatio, borderRadius: 16 }}
+      resizeMode="contain"
     />
   );
 };
@@ -63,9 +79,24 @@ const MediaPreviewModal = ({
   visible: boolean;
   onClose: () => void;
 }) => {
+  const [aspectRatio, setAspectRatio] = useState(1);
   const player = useVideoPlayer(media?.type === "video" ? media.url : null, (videoPlayer) => {
     videoPlayer.pause();
   });
+  const sourceLoad = useEvent(player, "sourceLoad", null);
+
+  useEffect(() => {
+    if (media?.type === "image") {
+      Image.getSize(media.url, (w, h) => h > 0 && setAspectRatio(w / h));
+    }
+  }, [media]);
+
+  useEffect(() => {
+    const track = sourceLoad?.availableVideoTracks?.[0];
+    if (media?.type === "video" && track?.size?.height) {
+      setAspectRatio(track.size.width / track.size.height);
+    }
+  }, [media, sourceLoad]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -79,12 +110,12 @@ const MediaPreviewModal = ({
             player={player}
             nativeControls
             allowsFullscreen
-            style={{ width: "100%", height: 320, borderRadius: 24 }}
+            style={{ width: "100%", aspectRatio, borderRadius: 24 }}
           />
         ) : media ? (
           <Image
             source={{ uri: media.url }}
-            style={{ width: "100%", height: 320, borderRadius: 24 }}
+            style={{ width: "100%", aspectRatio, borderRadius: 24 }}
             resizeMode="contain"
           />
         ) : null}

@@ -4,6 +4,8 @@ import { Post, PostMedia } from "@/types";
 import { formatDate } from "@/utils/formatters";
 import { Feather } from "@expo/vector-icons";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { useEvent } from "expo";
+import { useEffect, useState } from "react";
 import {
     Alert,
     View,
@@ -23,13 +25,28 @@ interface CommentsModalProps {
 }
 
 const PostMediaItem = ({ media }: { media: PostMedia }) => {
+    const [aspectRatio, setAspectRatio] = useState(1);
     const player = useVideoPlayer(media.type === "video" ? media.url : null, (videoPlayer) => {
         videoPlayer.pause();
     });
+    const sourceLoad = useEvent(player, "sourceLoad", null);
+
+    useEffect(() => {
+        if (media.type === "image") {
+            Image.getSize(media.url, (w, h) => h > 0 && setAspectRatio(w / h));
+        }
+    }, [media]);
+
+    useEffect(() => {
+        const track = sourceLoad?.availableVideoTracks?.[0];
+        if (media.type === "video" && track?.size?.height) {
+            setAspectRatio(track.size.width / track.size.height);
+        }
+    }, [media, sourceLoad]);
 
     if (media.type === "video") {
         return (
-            <View className="w-full h-48 rounded-2xl mb-3 overflow-hidden bg-black">
+            <View style={{ aspectRatio }} className="w-full rounded-2xl mb-3 overflow-hidden bg-black">
                 <VideoView player={player} nativeControls style={{ width: "100%", height: "100%" }} />
             </View>
         );
@@ -38,8 +55,8 @@ const PostMediaItem = ({ media }: { media: PostMedia }) => {
     return (
         <Image
             source={{ uri: media.url }}
-            className="w-full h-48 rounded-2xl mb-3"
-            resizeMode="cover"
+            style={{ width: "100%", aspectRatio, borderRadius: 16, marginBottom: 12 }}
+            resizeMode="contain"
         />
     );
 };
