@@ -1,13 +1,31 @@
-import { ScrollView, View, Image } from 'react-native'
-import React from 'react'
+import { ScrollView, View, Image, RefreshControl } from 'react-native'
+import React, { useCallback, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import SignOutButton from '@/components/SignOutButton'
 import { useUserSync } from '@/hooks/useUserSync'
 import PostComposer from '@/components/PostComposer'
 import PostsList from '@/components/PostsList'
+import { useQueryClient } from '@tanstack/react-query'
 
 const HomeScreen = () => {
   useUserSync();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+
+    try {
+      await Promise.allSettled([
+        queryClient.refetchQueries({ queryKey: ['posts'], exact: true }),
+        queryClient.refetchQueries({ queryKey: ['authUser'], exact: true }),
+        queryClient.refetchQueries({ queryKey: ['notifications'], exact: true }),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [queryClient]);
+
   return (
     <SafeAreaView className="flex-1 bg-white">
 
@@ -23,7 +41,11 @@ const HomeScreen = () => {
         </View>
       </View>
 
-      <ScrollView>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+      >
         <PostComposer />
         <PostsList/>
       </ScrollView>

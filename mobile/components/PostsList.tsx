@@ -11,7 +11,6 @@ const PostsList = ({ username }: { username?: string }) => {
   const {
     posts,
     isLoading,
-    isRefreshing,
     error,
     refetch,
     toggleLike,
@@ -52,18 +51,6 @@ const PostsList = ({ username }: { username?: string }) => {
 
   return (
     <View className="pb-5">
-      <View className="px-4 pt-4 pb-2">
-        <TouchableOpacity
-          className="self-start rounded-full border border-blue-200 bg-blue-50 px-4 py-2"
-          onPress={() => refetch()}
-          disabled={isRefreshing}
-        >
-          <Text className="font-medium text-blue-600">
-            {isRefreshing ? "Refreshing..." : "Refresh feed"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       {posts.map((post: Post) => (
         <PostCard
           key={post._id}
