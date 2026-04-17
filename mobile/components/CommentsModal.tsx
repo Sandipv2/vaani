@@ -113,13 +113,13 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
   const sliderWidth = screenWidth - 56;
 
   return (
-    <SafeAreaView edges={["top"]}>
-      <Modal
-        visible={!!selectedPost}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={handleClose}
-      >
+    <Modal
+      visible={!!selectedPost}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={handleClose}
+    >
+      <SafeAreaView edges={["top"]}>
         {/* MODAL HEADER */}
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
           <TouchableOpacity onPress={handleClose}>
@@ -274,8 +274,8 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
             </View>
           </ScrollView>
         )}
-      </Modal>
-    </SafeAreaView>
+      </SafeAreaView> 
+    </Modal>
   );
 };
 

@@ -97,7 +97,7 @@ const ProfileScreen = () => {
               <Text className="text-xl font-bold text-gray-900 mr-1">
                 {currentUser.firstName} {currentUser.lastName}
               </Text>
-              <Feather name="check-circle" size={20} color="#1DA1F2" />
+              {/* <Feather name="check-circle" size={20} color="#1DA1F2" /> */}
             </View>
             <Text className="text-gray-500 mb-2">@{currentUser.username}</Text>
             <Text className="text-gray-900 mb-3">{currentUser.bio}</Text>
