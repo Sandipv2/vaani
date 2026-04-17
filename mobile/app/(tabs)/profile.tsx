@@ -45,17 +45,12 @@ const ProfileScreen = () => {
     );
   }
 
-
-
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
-        <View>
           <Text className="text-xl font-bold text-gray-900">
             {currentUser.firstName} {currentUser.lastName}
           </Text>
-          <Text className="text-gray-500 text-sm">{userPosts.length} Posts</Text>
-        </View>
         <SignOutButton />
       </View>
 
@@ -64,14 +59,14 @@ const ProfileScreen = () => {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
+          refreshing={isRefetching}
             onRefresh={() => {
               refetchProfile();
               refetchPosts();
             }}
             tintColor="#1DA1F2"
-          />
-        }
+            />
+          }
       >
         <Image
           source={{
@@ -126,10 +121,16 @@ const ProfileScreen = () => {
                   <Text className="text-gray-500"> Following</Text>
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity>
+              <TouchableOpacity className='mr-6'>
                 <Text className="text-gray-900">
                   <Text className="font-bold">{currentUser.followers?.length}</Text>
                   <Text className="text-gray-500"> Followers</Text>
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity>
+                <Text className="text-gray-900">
+                  <Text className="font-bold">{userPosts.length}</Text>
+                  <Text className="text-gray-500"> Posts</Text>
                 </Text>
               </TouchableOpacity>
             </View>
