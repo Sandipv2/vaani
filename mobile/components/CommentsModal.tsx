@@ -113,7 +113,7 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
   const sliderWidth = screenWidth - 56;
 
   return (
-    <SafeAreaView>
+    <SafeAreaView edges={["top"]}>
       <Modal
         visible={!!selectedPost}
         animationType="slide"
