@@ -3,6 +3,7 @@ import { asyncHandler } from "../config/asyncHandler.js";
 import Post from "../models/post.model.js";
 import User from "../models/user.model.js";
 import Comment from "../models/comment.model.js";
+import Notification from "../models/notification.model.js";
 import cloudinary from "../config/cloudinary.js";
 
 const deletePostMediaFromCloudinary = async (media = []) => {

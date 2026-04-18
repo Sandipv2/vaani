@@ -2,6 +2,7 @@ import { clerkClient, getAuth } from "@clerk/express";
 import { asyncHandler } from "../config/asyncHandler.js";
 import User from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
+import cloudinary from "../config/cloudinary.js";
 
 const getUserPofile = asyncHandler(async (req, res) => {
     const { username } = req.params;
@@ -20,8 +21,53 @@ const getUserPofile = asyncHandler(async (req, res) => {
 
 const updateProfile = asyncHandler(async (req, res) => {
     const { userId } = getAuth(req);
+    const files = req.files || {};
 
-    const user = await User.findOneAndUpdate({ clerkId: userId }, req.body, { new: true });
+    const updateData = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        bio: req.body.bio,
+        location: req.body.location,
+    };
+
+    const profilePictureFile = files.profilePicture?.[0];
+    const bannerImageFile = files.bannerImage?.[0];
+
+    if (profilePictureFile) {
+        const base64file = `data:${profilePictureFile.mimetype};base64,${profilePictureFile.buffer.toString("base64")}`;
+        const uploadResponse = await cloudinary.uploader.upload(base64file, {
+            folder: "vaani_profile_images",
+            resource_type: "image",
+            transformation: [
+                { width: 600, height: 600, crop: "limit" },
+                { quality: "auto" },
+                { format: "auto" }
+            ]
+        });
+
+        updateData.profilePicture = uploadResponse.secure_url;
+    }
+
+    if (bannerImageFile) {
+        const base64file = `data:${bannerImageFile.mimetype};base64,${bannerImageFile.buffer.toString("base64")}`;
+        const uploadResponse = await cloudinary.uploader.upload(base64file, {
+            folder: "vaani_banner_images",
+            resource_type: "image",
+            transformation: [
+                { width: 1600, height: 900, crop: "limit" },
+                { quality: "auto" },
+                { format: "auto" }
+            ]
+        });
+
+        updateData.bannerImage = uploadResponse.secure_url;
+    }
+
+    const user = await User.findOneAndUpdate(
+        { clerkId: userId },
+        updateData,
+        { returnDocument: "after" }
+    );
 
     if (!user) {
         return res.status(404).json({

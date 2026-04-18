@@ -7,6 +7,8 @@ const allowedMimeTypes = [
     "image/png",
     "image/webp",
     "image/gif",
+    "image/heic",
+    "image/heif",
     "video/mp4",
     "video/webm",
     "video/quicktime"
@@ -16,7 +18,7 @@ const fileFilter = (req, file, cb) => {
     if (allowedMimeTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error("Only JPEG, PNG, WebP, GIF, MP4, WebM, MOV are allowed"), false);
+        cb(new Error("Only JPEG, PNG, WebP, GIF, HEIC, HEIF, MP4, WebM, MOV are allowed"), false);
     }
 };
 
