@@ -1,49 +1,60 @@
 import {
-    View,
-    Text,
-    Modal,
-    TouchableOpacity,
-    ActivityIndicator,
-    ScrollView,
-    TextInput,
-  } from "react-native";
-  
-  interface EditProfileModalProps {
-    isVisible: boolean;
-    onClose: () => void;
-    formData: {
-      firstName: string;
-      lastName: string;
-      bio: string;
-      location: string;
-    };
-    saveProfile: () => void;
-    updateFormField: (field: string, value: string) => void;
-    isUpdating: boolean;
-  }
-  
-  const EditProfileModal = ({
-    formData,
-    isUpdating,
-    isVisible,
-    onClose,
-    saveProfile,
-    updateFormField,
-  }: EditProfileModalProps) => {
-    const handleSave = () => {
-      saveProfile();
-      onClose();
-    };
-  
-    return (
-      <Modal visible={isVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  TextInput,
+  Image,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+interface EditProfileModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  formData: {
+    firstName: string;
+    lastName: string;
+    bio: string;
+    location: string;
+    profilePicture: string;
+    bannerImage: string;
+  };
+  saveProfile: () => void;
+  updateFormField: (field: string, value: string) => void;
+  pickImage: (field: "profilePicture" | "bannerImage") => void;
+  isUpdating: boolean;
+}
+
+const EditProfileModal = ({
+  formData,
+  isUpdating,
+  isVisible,
+  onClose,
+  saveProfile,
+  updateFormField,
+  pickImage,
+}: EditProfileModalProps) => {
+  const handleSave = () => {
+    saveProfile();
+  };
+
+  return (
+    <Modal
+      visible={isVisible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
           <TouchableOpacity onPress={onClose}>
             <Text className="text-blue-500 text-lg">Cancel</Text>
           </TouchableOpacity>
-  
+
           <Text className="text-lg font-semibold">Edit Profile</Text>
-  
+
           <TouchableOpacity
             onPress={handleSave}
             disabled={isUpdating}
@@ -56,9 +67,44 @@ import {
             )}
           </TouchableOpacity>
         </View>
-  
+
         <ScrollView className="flex-1 px-4 py-6">
           <View className="space-y-4">
+            <View>
+              <Text className="text-gray-500 text-sm mb-2">Cover Photo</Text>
+              <Image
+                source={{
+                  uri:
+                    formData.bannerImage ||
+                    "https://www.solidbackgrounds.com/images/1920x1080/1920x1080-light-blue-solid-color-background.jpg",
+                }}
+                className="w-full h-40 rounded-xl bg-gray-100"
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                className="mt-3 border border-gray-300 rounded-lg py-3 items-center"
+                onPress={() => pickImage("bannerImage")}
+              >
+                <Text className="text-gray-900 font-medium">Change cover photo</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View>
+              <Text className="text-gray-500 text-sm mb-2">Profile Picture</Text>
+              <View className="items-center">
+                <Image
+                  source={{ uri: formData.profilePicture }}
+                  className="w-28 h-28 rounded-full bg-gray-100"
+                />
+                <TouchableOpacity
+                  className="mt-3 border border-gray-300 rounded-lg py-3 px-6 items-center"
+                  onPress={() => pickImage("profilePicture")}
+                >
+                  <Text className="text-gray-900 font-medium">Change profile picture</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View>
               <Text className="text-gray-500 text-sm mb-2">First Name</Text>
               <TextInput
@@ -68,7 +114,7 @@ import {
                 placeholder="Your first name"
               />
             </View>
-  
+
             <View>
               <Text className="text-gray-500 text-sm mb-2">Last Name</Text>
               <TextInput
@@ -78,7 +124,7 @@ import {
                 placeholder="Your last name"
               />
             </View>
-  
+
             <View>
               <Text className="text-gray-500 text-sm mb-2">Bio</Text>
               <TextInput
@@ -91,7 +137,7 @@ import {
                 textAlignVertical="top"
               />
             </View>
-  
+
             <View>
               <Text className="text-gray-500 text-sm mb-2">Location</Text>
               <TextInput
@@ -103,8 +149,9 @@ import {
             </View>
           </View>
         </ScrollView>
-      </Modal>
-    );
-  };
-  
-  export default EditProfileModal;
+      </SafeAreaView>
+    </Modal>
+  );
+};
+
+export default EditProfileModal;

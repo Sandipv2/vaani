@@ -119,7 +119,7 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <SafeAreaView edges={["top"]}>
+      <SafeAreaView style={{ flex: 1 }}>
         {/* MODAL HEADER */}
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100">
           <TouchableOpacity onPress={handleClose}>
@@ -274,7 +274,7 @@ const CommentsModal = ({ selectedPost, onClose }: CommentsModalProps) => {
             </View>
           </ScrollView>
         )}
-      </SafeAreaView> 
+      </SafeAreaView>
     </Modal>
   );
 };
