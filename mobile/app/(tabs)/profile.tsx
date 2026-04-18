@@ -33,6 +33,7 @@ const ProfileScreen = () => {
     formData,
     saveProfile,
     updateFormField,
+    pickImage,
     isUpdating,
     refetch: refetchProfile,
   } = useProfile();
@@ -145,6 +146,7 @@ const ProfileScreen = () => {
           formData={formData}
           saveProfile={saveProfile}
           updateFormField={updateFormField}
+          pickImage={pickImage}
           isUpdating={isUpdating}
         />
       </ScrollView>

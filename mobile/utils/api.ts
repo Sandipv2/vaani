@@ -9,6 +9,21 @@ export type UploadMediaFile = {
     type: string;
 };
 
+export type ProfileImageFile = {
+    uri: string;
+    name: string;
+    type: string;
+};
+
+type UpdateProfilePayload = {
+    firstName: string;
+    lastName: string;
+    bio: string;
+    location: string;
+    profilePicture?: ProfileImageFile | null;
+    bannerImage?: ProfileImageFile | null;
+};
+
 type CreatePostPayload = {
     content: string;
     media?: UploadMediaFile[];
@@ -37,7 +52,34 @@ export const useApiClient = (): AxiosInstance => {
 export const userApi = {
     syncUser: (api: AxiosInstance) => api.post("/users/sync"),
     getCurrentUser: (api: AxiosInstance) => api.get("/users/me"),
-    updateProfile: (api: AxiosInstance, data: any) => api.put("/users/profile", data),
+    updateProfile: (api: AxiosInstance, data: UpdateProfilePayload) => {
+        const formData = new FormData();
+
+        formData.append("firstName", data.firstName);
+        formData.append("lastName", data.lastName);
+        formData.append("bio", data.bio);
+        formData.append("location", data.location);
+
+        if (data.profilePicture) {
+            formData.append("profilePicture", {
+                uri: data.profilePicture.uri,
+                name: data.profilePicture.name,
+                type: data.profilePicture.type,
+            } as any);
+        }
+
+        if (data.bannerImage) {
+            formData.append("bannerImage", {
+                uri: data.bannerImage.uri,
+                name: data.bannerImage.name,
+                type: data.bannerImage.type,
+            } as any);
+        }
+
+        return api.put("/users/profile", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
+    },
 };
 
 export const postApi = {
