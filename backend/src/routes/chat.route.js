@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+    deleteConversation,
     getConversations,
     getMessages,
     getOrCreateConversation,
@@ -11,6 +12,7 @@ const router = Router();
 
 router.get("/conversations", protectRoute, getConversations);
 router.post("/conversations", protectRoute, getOrCreateConversation);
+router.delete("/conversations/:conversationId", protectRoute, deleteConversation);
 router.get("/conversations/:conversationId/messages", protectRoute, getMessages);
 router.post("/conversations/:conversationId/messages", protectRoute, sendMessage);
 

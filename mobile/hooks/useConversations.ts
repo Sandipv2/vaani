@@ -20,6 +20,22 @@ const addConversationToResponse = (response: any, conversation: Conversation) =>
     };
 };
 
+const removeConversationFromResponse = (response: any, conversationId: string) => {
+    if (!response?.data || !Array.isArray(response.data.conversations)) {
+        return response;
+    }
+
+    return {
+        ...response,
+        data: {
+            ...response.data,
+            conversations: response.data.conversations.filter(
+                (item: Conversation) => item._id !== conversationId
+            ),
+        },
+    };
+};
+
 export const useConversations = () => {
     const api = useApiClient();
     const queryClient = useQueryClient();
@@ -42,6 +58,30 @@ export const useConversations = () => {
         },
     });
 
+    const deleteConversationMutation = useMutation({
+        mutationFn: (conversationId: string) => chatApi.deleteConversation(api, conversationId),
+        onMutate: async (conversationId: string) => {
+            await queryClient.cancelQueries({ queryKey: ["conversations"] });
+
+            const previousConversations = queryClient.getQueryData(["conversations"]);
+
+            queryClient.setQueryData(["conversations"], (currentResponse: any) =>
+                removeConversationFromResponse(currentResponse, conversationId)
+            );
+            queryClient.removeQueries({ queryKey: ["messages", conversationId] });
+
+            return { previousConversations };
+        },
+        onError: (_error, _conversationId, context) => {
+            if (context?.previousConversations) {
+                queryClient.setQueryData(["conversations"], context.previousConversations);
+            }
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        },
+    });
+
     return {
         conversations: conversationsQuery.data || [],
         isLoading: conversationsQuery.isLoading,
@@ -50,5 +90,7 @@ export const useConversations = () => {
         refetch: conversationsQuery.refetch,
         getOrCreateConversation: createConversationMutation.mutateAsync,
         isCreatingConversation: createConversationMutation.isPending,
+        deleteConversation: deleteConversationMutation.mutateAsync,
+        isDeletingConversation: deleteConversationMutation.isPending,
     };
 };

@@ -100,6 +100,29 @@ const getMessages = asyncHandler(async (req, res) => {
     res.status(200).json({ messages });
 });
 
+const deleteConversation = asyncHandler(async (req, res) => {
+    const currentUser = await getLoggedInUser(req);
+    const { conversationId } = req.params;
+
+    if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+    }
+
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: currentUser._id,
+    });
+
+    if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    await Message.deleteMany({ conversation: conversation._id });
+    await Conversation.deleteOne({ _id: conversation._id });
+
+    res.status(200).json({ success: true, conversationId });
+});
+
 const sendMessage = asyncHandler(async (req, res) => {
     const currentUser = await getLoggedInUser(req);
     const { conversationId } = req.params;
@@ -145,6 +168,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 });
 
 export {
+    deleteConversation,
     getConversations,
     getMessages,
     getOrCreateConversation,

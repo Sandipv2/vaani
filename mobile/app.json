@@ -18,7 +18,7 @@
         "backgroundImage": "./assets/images/vaani_icon.png",
         "monochromeImage": "./assets/images/vaani_icon.png"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.Vaani"

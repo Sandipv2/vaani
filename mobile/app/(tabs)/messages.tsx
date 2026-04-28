@@ -1,8 +1,8 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useState } from "react";
+import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useConversations } from "@/hooks/useConversations";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { Conversation, User } from "@/types";
@@ -17,7 +17,15 @@ const getOtherParticipant = (conversation: Conversation, currentUser?: User) => 
 const MessagesScreen = () => {
   const [searchText, setSearchText] = useState("");
   const { currentUser } = useCurrentUser();
-  const { conversations, isLoading, isRefreshing, error, refetch } = useConversations();
+  const {
+    conversations,
+    isLoading,
+    isRefreshing,
+    error,
+    refetch,
+    deleteConversation,
+    isDeletingConversation,
+  } = useConversations();
 
   const filteredConversations = conversations.filter((conversation) => {
     const otherUser = getOtherParticipant(conversation, currentUser);
@@ -27,6 +35,31 @@ const MessagesScreen = () => {
 
     return !query || fullName.includes(query) || username.includes(query);
   });
+
+  const handleDeleteConversation = (conversation: Conversation) => {
+    const otherUser = getOtherParticipant(conversation, currentUser);
+    const fullName = `${otherUser?.firstName || ""} ${otherUser?.lastName || ""}`.trim() || otherUser?.username || "this chat";
+
+    Alert.alert(
+      "Delete conversation",
+      `Delete ${fullName} conversation? This removes it from your chats.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteConversation(conversation._id);
+            } catch (deleteError) {
+              console.log("Failed to delete conversation", deleteError);
+              Alert.alert("Delete failed", "Could not delete the conversation. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -89,6 +122,9 @@ const MessagesScreen = () => {
                       params: { conversationId: conversation._id },
                     })
                   }
+                  onLongPress={() => handleDeleteConversation(conversation)}
+                  delayLongPress={250}
+                  disabled={isDeletingConversation}
                 >
                   <Image
                     source={{ uri: otherUser?.profilePicture || DEFAULT_AVATAR }}

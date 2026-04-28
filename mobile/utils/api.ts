@@ -125,6 +125,8 @@ export const chatApi = {
     getConversations: (api: AxiosInstance) => api.get("/chat/conversations"),
     getOrCreateConversation: (api: AxiosInstance, targetUserId: string) =>
         api.post("/chat/conversations", { targetUserId }),
+    deleteConversation: (api: AxiosInstance, conversationId: string) =>
+        api.delete(`/chat/conversations/${conversationId}`),
     getMessages: (api: AxiosInstance, conversationId: string) =>
         api.get(`/chat/conversations/${conversationId}/messages`),
     sendMessage: (api: AxiosInstance, conversationId: string, text: string) =>
