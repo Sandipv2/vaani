@@ -7,7 +7,7 @@ import cloudinary from "../config/cloudinary.js";
 const getUserPofile = asyncHandler(async (req, res) => {
     const { username } = req.params;
 
-    const user = User.findOne({ username });
+    const user = await User.findOne({ username });
     if (!user) {
         return res.status(404).json({
             error: "User not found"
@@ -17,6 +17,38 @@ const getUserPofile = asyncHandler(async (req, res) => {
     res.status(200).json({
         user,
     })
+})
+
+const searchUsers = asyncHandler(async (req, res) => {
+    const query = String(req.query.q || "").trim();
+
+    if (!query) {
+        return res.status(200).json({ users: [] });
+    }
+
+    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const searchRegex = new RegExp(escapedQuery, "i");
+
+    const users = await User.find({
+        $or: [
+            { username: searchRegex },
+            { firstName: searchRegex },
+            { lastName: searchRegex },
+            {
+                $expr: {
+                    $regexMatch: {
+                        input: { $concat: ["$firstName", " ", "$lastName"] },
+                        regex: escapedQuery,
+                        options: "i",
+                    },
+                },
+            },
+        ],
+    })
+        .select("username firstName lastName profilePicture bio")
+        .limit(20);
+
+    res.status(200).json({ users });
 })
 
 const updateProfile = asyncHandler(async (req, res) => {
@@ -164,6 +196,7 @@ const followUser = asyncHandler(async (req, res) => {
 
 export {
     getUserPofile,
+    searchUsers,
     updateProfile,
     syncUser,
     getCurrentUser,
