@@ -100,10 +100,55 @@ const getMessages = asyncHandler(async (req, res) => {
     res.status(200).json({ messages });
 });
 
+const sendMessage = asyncHandler(async (req, res) => {
+    const currentUser = await getLoggedInUser(req);
+    const { conversationId } = req.params;
+    const messageText = String(req.body.text || "").trim();
+
+    if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+    }
+
+    if (!messageText) {
+        return res.status(400).json({ error: "Message text is required" });
+    }
+
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: currentUser._id,
+    });
+
+    if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const message = await Message.create({
+        conversation: conversation._id,
+        sender: currentUser._id,
+        text: messageText,
+    });
+
+    conversation.lastMessage = message._id;
+    await conversation.save();
+
+    const populatedMessage = await Message.findById(message._id)
+        .populate("sender", userSelect);
+
+    const populatedConversation = await populateConversation(
+        Conversation.findById(conversation._id)
+    );
+
+    res.status(201).json({
+        message: populatedMessage,
+        conversation: populatedConversation,
+    });
+});
+
 export {
     getConversations,
     getMessages,
     getOrCreateConversation,
+    sendMessage,
     populateConversation,
     userSelect,
 };

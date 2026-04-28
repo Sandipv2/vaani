@@ -5,13 +5,56 @@ import { io, Socket } from "socket.io-client";
 import { API_ORIGIN } from "@/utils/api";
 import { ChatMessage, Conversation } from "@/types";
 
-export const useChatSocket = () => {
+const canUseRealtimeSocket = !API_ORIGIN.includes("vercel.app");
+
+const addMessageToResponse = (response: any, message: ChatMessage) => {
+    if (!response?.data || !Array.isArray(response.data.messages)) {
+        return response;
+    }
+
+    const alreadyExists = response.data.messages.some(
+        (item: ChatMessage) => item._id === message._id
+    );
+
+    if (alreadyExists) {
+        return response;
+    }
+
+    return {
+        ...response,
+        data: {
+            ...response.data,
+            messages: [...response.data.messages, message],
+        },
+    };
+};
+
+const addConversationToResponse = (response: any, conversation: Conversation) => {
+    if (!response?.data || !Array.isArray(response.data.conversations)) {
+        return response;
+    }
+
+    const otherConversations = response.data.conversations.filter(
+        (item: Conversation) => item._id !== conversation._id
+    );
+
+    return {
+        ...response,
+        data: {
+            ...response.data,
+            conversations: [conversation, ...otherConversations],
+        },
+    };
+};
+
+export const useChatSocket = (enabled = true) => {
     const { getToken, isSignedIn } = useAuth();
     const queryClient = useQueryClient();
     const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
-        if (!isSignedIn) {
+        if (!canUseRealtimeSocket || !enabled || !isSignedIn) {
+            setSocket(null);
             return;
         }
 
@@ -28,23 +71,22 @@ export const useChatSocket = () => {
             chatSocket = io(API_ORIGIN, {
                 transports: ["websocket"],
                 auth: { token },
+                reconnectionAttempts: 2,
+                reconnectionDelay: 1000,
+                timeout: 5000,
             });
 
             chatSocket.on("newMessage", (message: ChatMessage) => {
-                queryClient.setQueryData<ChatMessage[]>(
+                queryClient.setQueryData(
                     ["messages", message.conversation],
-                    (currentMessages = []) => {
-                        const alreadyExists = currentMessages.some((item) => item._id === message._id);
-                        return alreadyExists ? currentMessages : [...currentMessages, message];
-                    }
+                    (currentResponse: any) => addMessageToResponse(currentResponse, message)
                 );
             });
 
             chatSocket.on("conversationUpdated", (conversation: Conversation) => {
-                queryClient.setQueryData<Conversation[]>(["conversations"], (currentConversations = []) => {
-                    const withoutUpdated = currentConversations.filter((item) => item._id !== conversation._id);
-                    return [conversation, ...withoutUpdated];
-                });
+                queryClient.setQueryData(["conversations"], (currentResponse: any) =>
+                    addConversationToResponse(currentResponse, conversation)
+                );
             });
 
             setSocket(chatSocket);
@@ -55,8 +97,9 @@ export const useChatSocket = () => {
         return () => {
             shouldConnect = false;
             chatSocket?.disconnect();
+            setSocket(null);
         };
-    }, [getToken, isSignedIn, queryClient]);
+    }, [enabled, getToken, isSignedIn, queryClient]);
 
     return useMemo(() => ({ socket }), [socket]);
 };

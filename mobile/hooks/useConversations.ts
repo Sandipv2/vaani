@@ -2,6 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { chatApi, useApiClient } from "@/utils/api";
 import { Conversation } from "@/types";
 
+const addConversationToResponse = (response: any, conversation: Conversation) => {
+    if (!response?.data || !Array.isArray(response.data.conversations)) {
+        return response;
+    }
+
+    const otherConversations = response.data.conversations.filter(
+        (item: Conversation) => item._id !== conversation._id
+    );
+
+    return {
+        ...response,
+        data: {
+            ...response.data,
+            conversations: [conversation, ...otherConversations],
+        },
+    };
+};
+
 export const useConversations = () => {
     const api = useApiClient();
     const queryClient = useQueryClient();
@@ -17,10 +35,9 @@ export const useConversations = () => {
         onSuccess: (response) => {
             const conversation = response.data.conversation as Conversation;
 
-            queryClient.setQueryData<Conversation[]>(["conversations"], (currentConversations = []) => {
-                const withoutCurrent = currentConversations.filter((item) => item._id !== conversation._id);
-                return [conversation, ...withoutCurrent];
-            });
+            queryClient.setQueryData(["conversations"], (currentResponse: any) =>
+                addConversationToResponse(currentResponse, conversation)
+            );
             queryClient.invalidateQueries({ queryKey: ["conversations"] });
         },
     });

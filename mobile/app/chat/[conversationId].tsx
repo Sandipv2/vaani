@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,11 +14,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useChatSocketContext } from "@/context/ChatSocketContext";
+import { useChatSocket } from "@/hooks/useChatSocket";
 import { useConversations } from "@/hooks/useConversations";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useMessages } from "@/hooks/useMessages";
 import { Conversation, User } from "@/types";
+import { chatApi, useApiClient } from "@/utils/api";
 import { formatDate } from "@/utils/formatters";
 
 const DEFAULT_AVATAR = "https://www.gravatar.com/avatar/?d=mp";
@@ -33,7 +35,9 @@ const ChatScreen = () => {
   const [isSending, setIsSending] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const { socket } = useChatSocketContext();
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+  const { socket } = useChatSocket(Boolean(normalizedConversationId));
   const { currentUser } = useCurrentUser();
   const { conversations } = useConversations();
   const { messages, isLoading, error, refetch } = useMessages(normalizedConversationId);
@@ -42,31 +46,89 @@ const ChatScreen = () => {
   const otherUser = getOtherParticipant(conversation, currentUser);
   const otherUserName = `${otherUser?.firstName || ""} ${otherUser?.lastName || ""}`.trim() || otherUser?.username || "Chat";
 
-  const sendMessage = () => {
+  const addMessageToCache = (message: any) => {
+    queryClient.setQueryData(["messages", normalizedConversationId], (currentResponse: any) => {
+      if (!currentResponse?.data || !Array.isArray(currentResponse.data.messages)) {
+        return currentResponse;
+      }
+
+      const alreadyExists = currentResponse.data.messages.some((item: any) => item._id === message._id);
+
+      if (alreadyExists) {
+        return currentResponse;
+      }
+
+      return {
+        ...currentResponse,
+        data: {
+          ...currentResponse.data,
+          messages: [...currentResponse.data.messages, message],
+        },
+      };
+    });
+  };
+
+  const addConversationToCache = (updatedConversation: Conversation) => {
+    queryClient.setQueryData(["conversations"], (currentResponse: any) => {
+      if (!currentResponse?.data || !Array.isArray(currentResponse.data.conversations)) {
+        return currentResponse;
+      }
+
+      const otherConversations = currentResponse.data.conversations.filter(
+        (item: Conversation) => item._id !== updatedConversation._id
+      );
+
+      return {
+        ...currentResponse,
+        data: {
+          ...currentResponse.data,
+          conversations: [updatedConversation, ...otherConversations],
+        },
+      };
+    });
+  };
+
+  const sendMessage = async () => {
     const text = messageText.trim();
 
-    if (!socket || !normalizedConversationId || !text || isSending) {
+    if (!normalizedConversationId || !text || isSending) {
       return;
     }
 
     setIsSending(true);
-    socket.emit(
-      "sendMessage",
-      {
-        conversationId: normalizedConversationId,
-        text,
-      },
-      (response: { ok: boolean; error?: string }) => {
-        setIsSending(false);
 
-        if (response.ok) {
-          setMessageText("");
-          return;
+    if (socket) {
+      socket.emit(
+        "sendMessage",
+        {
+          conversationId: normalizedConversationId,
+          text,
+        },
+        (response: { ok: boolean; error?: string }) => {
+          setIsSending(false);
+
+          if (response.ok) {
+            setMessageText("");
+            return;
+          }
+
+          console.log(response.error || "Failed to send message");
         }
+      );
 
-        console.log(response.error || "Failed to send message");
-      }
-    );
+      return;
+    }
+
+    try {
+      const response = await chatApi.sendMessage(api, normalizedConversationId, text);
+      addMessageToCache(response.data.message);
+      addConversationToCache(response.data.conversation);
+      setMessageText("");
+    } catch (sendError) {
+      console.log("Failed to send message", sendError);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -144,15 +206,15 @@ const ChatScreen = () => {
           </ScrollView>
         )}
 
-        <View className="flex-row items-center px-4 py-3 border-t border-gray-100">
+        <View className="flex-row items-center px-4 pt-3 pb-6 border-t border-gray-100">
           <View className="flex-1 bg-gray-100 rounded-2xl px-4 py-2 mr-3">
             <TextInput
               className="text-base max-h-28"
-              placeholder={socket ? "Type a message..." : "Connecting..."}
+              placeholder="Type a message..."
               placeholderTextColor="#657786"
               value={messageText}
               onChangeText={setMessageText}
-              editable={Boolean(socket) && !isSending}
+              editable={!isSending}
               multiline
             />
           </View>
@@ -160,9 +222,9 @@ const ChatScreen = () => {
           <TouchableOpacity
             onPress={sendMessage}
             className={`size-10 rounded-full items-center justify-center ${
-              messageText.trim() && socket && !isSending ? "bg-blue-500" : "bg-gray-300"
+              messageText.trim() && !isSending ? "bg-blue-500" : "bg-gray-300"
             }`}
-            disabled={!messageText.trim() || !socket || isSending}
+            disabled={!messageText.trim() || isSending}
           >
             <Feather name="send" size={20} color="white" />
           </TouchableOpacity>
