@@ -52,6 +52,10 @@ export const useApiClient = (): AxiosInstance => {
 export const userApi = {
     syncUser: (api: AxiosInstance) => api.post("/users/sync"),
     getCurrentUser: (api: AxiosInstance) => api.get("/users/me"),
+    getUserProfile: (api: AxiosInstance, username: string) =>
+        api.get(`/users/profile/${encodeURIComponent(username)}`),
+    searchUsers: (api: AxiosInstance, query: string) =>
+        api.get("/users/search", { params: { q: query } }),
     updateProfile: (api: AxiosInstance, data: UpdateProfilePayload) => {
         const formData = new FormData();
 

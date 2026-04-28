@@ -3,6 +3,7 @@ import {
     followUser, 
     getCurrentUser, 
     getUserPofile, 
+    searchUsers,
     syncUser,
     updateProfile 
 } from "../controllers/user.controller.js";
@@ -12,6 +13,7 @@ import upload from "../middlewares/upload.middleware.js";
 const router = Router();
 
 // public routes
+router.get("/search", searchUsers);
 router.get("/profile/:username", getUserPofile);
 
 // Protected route 
