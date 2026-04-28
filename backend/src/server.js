@@ -1,11 +1,14 @@
 import express from "express";
 import cors from "cors";
+import http from "http";
 import { clerkMiddleware } from "@clerk/express";
 import { arcjetMiddleware } from "./middlewares/arcjet.middleware.js";
 import { connectDB } from "./config/db.js";
 import { ENV } from "./config/env.js";
+import { setupSocket } from "./socket.js";
 
 const app = express();
+const httpServer = http.createServer(app);
 
 app.use(cors());
 app.use(clerkMiddleware());
@@ -25,11 +28,13 @@ import userRouter from "./routes/user.route.js";
 import postRouter from "./routes/post.route.js";
 import commentRoutes from "./routes/comment.route.js";
 import notificationRoutes from "./routes/notification.route.js";
+import chatRoutes from "./routes/chat.route.js";
 
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/posts", postRouter);
 app.use("/api/v1/comments", commentRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/chat", chatRoutes);
 
 app.use((err, req, res, next) => {
     console.error("Unhandled error:", err);
@@ -41,7 +46,8 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     try {
         await connectDB();
-        app.listen(ENV.PORT, () => {
+        setupSocket(httpServer);
+        httpServer.listen(ENV.PORT, () => {
             console.log(`Server is running at port: ${ENV.PORT}`);
         });
     } catch (error) {

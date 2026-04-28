@@ -3,14 +3,32 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import UserProfileView from "@/components/UserProfileView";
+import { useConversations } from "@/hooks/useConversations";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { usePosts } from "@/hooks/usePosts";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
 const UserProfileScreen = () => {
   const { username } = useLocalSearchParams<{ username: string }>();
   const normalizedUsername = Array.isArray(username) ? username[0] : username;
+  const { currentUser } = useCurrentUser();
   const { user, isLoading, isRefreshing, error, refetch } = useUserProfile(normalizedUsername);
   const { posts, refetch: refetchPosts, isRefreshing: isPostsRefreshing } = usePosts(normalizedUsername);
+  const { getOrCreateConversation, isCreatingConversation } = useConversations();
+
+  const openChat = async () => {
+    if (!user?._id || isCreatingConversation) {
+      return;
+    }
+
+    const response = await getOrCreateConversation(user._id);
+    const conversationId = response.data.conversation._id;
+
+    router.push({
+      pathname: "/chat/[conversationId]",
+      params: { conversationId },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -53,6 +71,19 @@ const UserProfileScreen = () => {
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="x" size={24} color="#111827" />
           </TouchableOpacity>
+        }
+        action={
+          currentUser?._id !== user._id ? (
+            <TouchableOpacity
+              className="border border-gray-300 px-6 py-2 rounded-full"
+              onPress={openChat}
+              disabled={isCreatingConversation}
+            >
+              <Text className="font-semibold text-gray-900">
+                {isCreatingConversation ? "Opening..." : "Message"}
+              </Text>
+            </TouchableOpacity>
+          ) : undefined
         }
       />
     </SafeAreaView>

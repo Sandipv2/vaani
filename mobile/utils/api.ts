@@ -1,7 +1,8 @@
 import axios, { AxiosInstance } from "axios";
 import { useAuth } from "@clerk/expo";
 
-const API_BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE_URL}/api/v1` || "https://vaani-coral.vercel.app/api/v1";
+export const API_ORIGIN = (process.env.EXPO_PUBLIC_API_BASE_URL || "https://vaani-coral.vercel.app").replace(/\/$/, "");
+const API_BASE_URL = `${API_ORIGIN}/api/v1`;
 
 export type UploadMediaFile = {
     uri: string;
@@ -118,4 +119,12 @@ export const commentApi = {
         api.post(`/comments/post/${postId}`, { content }),
     deleteComment: (api: AxiosInstance, commentId: string) =>
         api.delete(`/comments/${commentId}`),
+};
+
+export const chatApi = {
+    getConversations: (api: AxiosInstance) => api.get("/chat/conversations"),
+    getOrCreateConversation: (api: AxiosInstance, targetUserId: string) =>
+        api.post("/chat/conversations", { targetUserId }),
+    getMessages: (api: AxiosInstance, conversationId: string) =>
+        api.get(`/chat/conversations/${conversationId}/messages`),
 };
