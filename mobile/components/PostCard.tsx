@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Post, PostMedia, User } from "@/types";
 import { formatDate, formatNumber } from "@/utils/formatters";
 import { AntDesign, Feather } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
 import {
@@ -132,6 +133,17 @@ const PostCard = ({ currentUser, onDelete, onLike, post, isLiked, onComment }: P
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const mediaItems = post.media || [];
 
+  const openAuthorProfile = () => {
+    if (!post.user.username) {
+      return;
+    }
+
+    router.push({
+      pathname: "/user/[username]",
+      params: { username: post.user.username },
+    });
+  };
+
   const handleDelete = () => {
     Alert.alert("Delete Post", "Are you sure you want to delete this post?", [
       { text: "Cancel", style: "cancel" },
@@ -152,21 +164,27 @@ const PostCard = ({ currentUser, onDelete, onLike, post, isLiked, onComment }: P
       />
 
       <View className="flex-row p-4">
-        <Image
-          source={{ uri: post.user.profilePicture || "" }}
-          className="w-12 h-12 rounded-full mr-3"
-        />
+        <TouchableOpacity onPress={openAuthorProfile} activeOpacity={0.8}>
+          <Image
+            source={{ uri: post.user.profilePicture || "" }}
+            className="w-12 h-12 rounded-full mr-3"
+          />
+        </TouchableOpacity>
 
         <View className="flex-1">
           <View className="flex-row items-center justify-between mb-1">
-            <View className="flex-row items-center">
+            <TouchableOpacity
+              className="flex-row flex-1 items-center"
+              onPress={openAuthorProfile}
+              activeOpacity={0.8}
+            >
               <Text className="font-bold text-gray-900 mr-1">
                 {post.user.firstName} {post.user.lastName}
               </Text>
               <Text className="text-gray-500 ml-1">
                 @{post.user.username} · {formatDate(post.createdAt)}
               </Text>
-            </View>
+            </TouchableOpacity>
             {isOwnPost && (
               <TouchableOpacity onPress={handleDelete}>
                 <Feather name="trash" size={20} color="#657786" />
