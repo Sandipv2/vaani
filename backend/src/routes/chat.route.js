@@ -1,19 +1,15 @@
 import { Router } from "express";
 import {
-    deleteConversation,
-    getConversations,
-    getMessages,
-    getOrCreateConversation,
-    sendMessage,
+    getChatToken,
+    getOrCreateChannel,
+    hideChannel,
 } from "../controllers/chat.controller.js";
 import { protectRoute } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.get("/conversations", protectRoute, getConversations);
-router.post("/conversations", protectRoute, getOrCreateConversation);
-router.delete("/conversations/:conversationId", protectRoute, deleteConversation);
-router.get("/conversations/:conversationId/messages", protectRoute, getMessages);
-router.post("/conversations/:conversationId/messages", protectRoute, sendMessage);
+router.get("/token", protectRoute, getChatToken);
+router.post("/channels", protectRoute, getOrCreateChannel);
+router.delete("/channels/:channelId", protectRoute, hideChannel);
 
 export default router;

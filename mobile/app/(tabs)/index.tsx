@@ -2,13 +2,11 @@ import { ScrollView, View, Image, RefreshControl } from 'react-native'
 import React, { useCallback, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import SignOutButton from '@/components/SignOutButton'
-import { useUserSync } from '@/hooks/useUserSync'
 import PostComposer from '@/components/PostComposer'
 import PostsList from '@/components/PostsList'
 import { useQueryClient } from '@tanstack/react-query'
 
 const HomeScreen = () => {
-  useUserSync();
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 

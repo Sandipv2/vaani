@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import UserProfileView from "@/components/UserProfileView";
 import { useConversations } from "@/hooks/useConversations";
@@ -21,13 +21,23 @@ const UserProfileScreen = () => {
       return;
     }
 
-    const response = await getOrCreateConversation(user._id);
-    const conversationId = response.data.conversation._id;
+    try {
+      const response = await getOrCreateConversation(user._id);
+      const conversationId = response.data.channelId;
 
-    router.push({
-      pathname: "/chat/[conversationId]",
-      params: { conversationId },
-    });
+      router.push({
+        pathname: "/chat/[conversationId]",
+        params: { conversationId },
+      });
+    } catch (error: any) {
+      Alert.alert(
+        "Could not open chat",
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          error?.message ||
+          "Please try again."
+      );
+    }
   };
 
   if (isLoading) {

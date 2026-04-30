@@ -5,7 +5,6 @@ import { clerkMiddleware } from "@clerk/express";
 import { arcjetMiddleware } from "./middlewares/arcjet.middleware.js";
 import { connectDB } from "./config/db.js";
 import { ENV } from "./config/env.js";
-import { setupSocket } from "./socket.js";
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -46,7 +45,6 @@ app.use((err, req, res, next) => {
 const startServer = async () => {
     try {
         await connectDB();
-        setupSocket(httpServer);
         httpServer.listen(ENV.PORT, () => {
             console.log(`Server is running at port: ${ENV.PORT}`);
         });

@@ -1,168 +1,233 @@
+import * as DocumentPicker from "expo-document-picker";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
-  Keyboard,
+  KeyboardAvoidingView,
+  Linking,
   Platform,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useChatSocket } from "@/hooks/useChatSocket";
-import { useConversations } from "@/hooks/useConversations";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { Channel } from "stream-chat";
+import { useStreamChat } from "@/components/StreamChatProvider";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
-import { useMessages } from "@/hooks/useMessages";
-import { Conversation, User } from "@/types";
-import { chatApi, useApiClient } from "@/utils/api";
-import { formatDate } from "@/utils/formatters";
 
 const DEFAULT_AVATAR = "https://www.gravatar.com/avatar/?d=mp";
 
-const getOtherParticipant = (conversation?: Conversation, currentUser?: User) => {
-  return conversation?.participants.find((user) => user._id !== currentUser?._id);
-};
-
 const ChatScreen = () => {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
-  const normalizedConversationId = Array.isArray(conversationId) ? conversationId[0] : conversationId;
-  const [messageText, setMessageText] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [composerHeight, setComposerHeight] = useState(84);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const insets = useSafeAreaInsets();
-
-  const api = useApiClient();
-  const queryClient = useQueryClient();
-  const { socket } = useChatSocket(Boolean(normalizedConversationId));
+  const normalizedChannelId = Array.isArray(conversationId) ? conversationId[0] : conversationId;
+  const { client } = useStreamChat();
   const { currentUser } = useCurrentUser();
-  const { conversations } = useConversations();
-  const { messages, isLoading, error, refetch } = useMessages(normalizedConversationId);
-
-  const conversation = conversations.find((item) => item._id === normalizedConversationId);
-  const otherUser = getOtherParticipant(conversation, currentUser);
-  const otherUserName = `${otherUser?.firstName || ""} ${otherUser?.lastName || ""}`.trim() || otherUser?.username || "Chat";
-  const composerLift = Platform.OS === "android" ? keyboardHeight : 0;
+  const [channel, setChannel] = useState<Channel | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const listRef = useRef<FlatList<any>>(null);
 
   useEffect(() => {
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    let isMounted = true;
+    let subscription: { unsubscribe: () => void } | undefined;
 
-    const showSubscription = Keyboard.addListener(showEvent, (event) => {
-      setKeyboardHeight(event.endCoordinates.height);
-    });
+    const loadChannel = async () => {
+      if (!client || !normalizedChannelId) {
+        return;
+      }
 
-    const hideSubscription = Keyboard.addListener(hideEvent, () => {
-      setKeyboardHeight(0);
-    });
+      setIsLoading(true);
+
+      try {
+        const nextChannel = client.channel("messaging", normalizedChannelId);
+        await nextChannel.watch();
+        await nextChannel.markRead();
+
+        if (isMounted) {
+          setChannel(nextChannel);
+          setMessages([...nextChannel.state.messages]);
+        }
+
+        subscription = nextChannel.on((event: any) => {
+          if (
+            event.type === "message.new" ||
+            event.type === "message.updated" ||
+            event.type === "message.deleted"
+          ) {
+            setMessages([...nextChannel.state.messages]);
+          }
+        });
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadChannel();
 
     return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
+      isMounted = false;
+      subscription?.unsubscribe();
     };
-  }, []);
+  }, [client, normalizedChannelId]);
 
-  const addMessageToCache = (message: any) => {
-    queryClient.setQueryData(["messages", normalizedConversationId], (currentResponse: any) => {
-      if (!currentResponse?.data || !Array.isArray(currentResponse.data.messages)) {
-        return currentResponse;
-      }
+  useEffect(() => {
+    if (messages.length) {
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    }
+  }, [messages.length]);
 
-      const alreadyExists = currentResponse.data.messages.some((item: any) => item._id === message._id);
+  const otherMember = useMemo(() => {
+    if (!channel || !currentUser?._id) {
+      return null;
+    }
 
-      if (alreadyExists) {
-        return currentResponse;
-      }
+    return Object.values(channel.state.members || {}).find(
+      (member: any) => member.user?.id !== currentUser._id
+    ) as any;
+  }, [channel, currentUser?._id]);
 
-      return {
-        ...currentResponse,
-        data: {
-          ...currentResponse.data,
-          messages: [...currentResponse.data.messages, message],
-        },
-      };
-    });
-  };
+  const otherUser = otherMember?.user;
+  const otherUserName = otherUser?.name || otherUser?.username || "Chat";
 
-  const addConversationToCache = (updatedConversation: Conversation) => {
-    queryClient.setQueryData(["conversations"], (currentResponse: any) => {
-      if (!currentResponse?.data || !Array.isArray(currentResponse.data.conversations)) {
-        return currentResponse;
-      }
-
-      const otherConversations = currentResponse.data.conversations.filter(
-        (item: Conversation) => item._id !== updatedConversation._id
-      );
-
-      return {
-        ...currentResponse,
-        data: {
-          ...currentResponse.data,
-          conversations: [updatedConversation, ...otherConversations],
-        },
-      };
-    });
-  };
-
-  const sendMessage = async () => {
+  const sendTextMessage = async () => {
     const text = messageText.trim();
 
-    if (!normalizedConversationId || !text || isSending) {
+    if (!channel || !text || isSending) {
       return;
     }
 
     setIsSending(true);
 
-    if (socket) {
-      socket.emit(
-        "sendMessage",
-        {
-          conversationId: normalizedConversationId,
-          text,
-        },
-        (response: { ok: boolean; error?: string }) => {
-          setIsSending(false);
-
-          if (response.ok) {
-            setMessageText("");
-            return;
-          }
-
-          console.log(response.error || "Failed to send message");
-        }
-      );
-
-      return;
-    }
-
     try {
-      const response = await chatApi.sendMessage(api, normalizedConversationId, text);
-      addMessageToCache(response.data.message);
-      addConversationToCache(response.data.conversation);
+      await channel.sendMessage({ text });
       setMessageText("");
-    } catch (sendError) {
-      console.log("Failed to send message", sendError);
+      setMessages([...channel.state.messages]);
     } finally {
       setIsSending(false);
     }
   };
 
+  const sendFileMessage = async () => {
+    if (!channel || isSending) {
+      return;
+    }
+
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
+
+    const file = result.assets[0];
+
+    setIsSending(true);
+
+    try {
+      const mimeType = file.mimeType || "application/octet-stream";
+      const isImage = mimeType.startsWith("image/");
+      const upload = isImage
+        ? await channel.sendImage(file.uri, file.name, mimeType)
+        : await channel.sendFile(file.uri, file.name, mimeType);
+
+      await channel.sendMessage({
+        attachments: [
+          {
+            asset_url: isImage ? undefined : upload.file,
+            file_size: file.size,
+            image_url: isImage ? upload.file : undefined,
+            mime_type: mimeType,
+            title: file.name,
+            type: isImage ? "image" : "file",
+          },
+        ],
+        text: "",
+      });
+      setMessages([...channel.state.messages]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const renderMessage = ({ item }: { item: any }) => {
+    const isMine = item.user?.id === currentUser?._id;
+
+    return (
+      <View className={`mb-3 px-4 ${isMine ? "items-end" : "items-start"}`}>
+        <View
+          className={`max-w-[82%] rounded-2xl px-4 py-2 ${
+            isMine ? "bg-blue-500" : "bg-gray-100"
+          }`}
+        >
+          {!!item.text && (
+            <Text className={isMine ? "text-white" : "text-gray-900"}>{item.text}</Text>
+          )}
+
+          {item.attachments?.map((attachment: any, index: number) => {
+            const url = attachment.image_url || attachment.asset_url || attachment.title_link;
+            const title = attachment.title || "Attachment";
+
+            if (attachment.type === "image" && attachment.image_url) {
+              return (
+                <TouchableOpacity
+                  key={`${item.id}-attachment-${index}`}
+                  className="mt-2 overflow-hidden rounded-xl"
+                  onPress={() => Linking.openURL(attachment.image_url)}
+                >
+                  <Image
+                    source={{ uri: attachment.image_url }}
+                    className="h-48 w-56 bg-gray-200"
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              );
+            }
+
+            return (
+              <TouchableOpacity
+                key={`${item.id}-attachment-${index}`}
+                className={`mt-2 flex-row items-center rounded-xl px-3 py-2 ${
+                  isMine ? "bg-blue-600" : "bg-white"
+                }`}
+                onPress={() => url && Linking.openURL(url)}
+              >
+                <Feather name="paperclip" size={16} color={isMine ? "#fff" : "#1DA1F2"} />
+                <Text
+                  className={`ml-2 flex-1 text-sm font-medium ${
+                    isMine ? "text-white" : "text-gray-900"
+                  }`}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
-      <View className="flex-row items-center px-4 py-3 border-b border-gray-100">
+    <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+      <View className="flex-row items-center border-b border-gray-100 px-4 py-3">
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <Feather name="arrow-left" size={24} color="#1DA1F2" />
         </TouchableOpacity>
 
         <Image
-          source={{ uri: otherUser?.profilePicture || DEFAULT_AVATAR }}
-          className="size-10 rounded-full mr-3"
+          source={{ uri: otherUser?.image || DEFAULT_AVATAR }}
+          className="mr-3 size-10 rounded-full"
         />
 
         <View className="flex-1">
@@ -170,100 +235,63 @@ const ChatScreen = () => {
             {otherUserName}
           </Text>
           {!!otherUser?.username && (
-            <Text className="text-gray-500 text-sm">@{otherUser.username}</Text>
+            <Text className="text-sm text-gray-500">@{otherUser.username}</Text>
           )}
         </View>
       </View>
 
-      <View className="flex-1">
-        {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#1DA1F2" />
-            <Text className="text-gray-500 mt-2">Loading messages...</Text>
-          </View>
-        ) : error ? (
-          <View className="flex-1 items-center justify-center px-8">
-            <Text className="text-gray-500 text-center mb-4">Failed to load messages</Text>
-            <TouchableOpacity className="bg-blue-500 px-4 py-2 rounded-lg" onPress={() => refetch()}>
-              <Text className="text-white font-semibold">Retry</Text>
+      {isLoading || !client || !channel ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#1DA1F2" />
+          <Text className="mt-2 text-gray-500">Loading chat...</Text>
+        </View>
+      ) : (
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
+        >
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item, index) => item.id || `${item.created_at}-${index}`}
+            className="flex-1"
+            contentContainerClassName="py-4"
+            renderItem={renderMessage}
+          />
+
+          <View className="flex-row items-end border-t border-gray-100 px-3 py-2">
+            <TouchableOpacity
+              className="mr-2 size-10 items-center justify-center rounded-full bg-gray-100"
+              disabled={isSending}
+              onPress={sendFileMessage}
+            >
+              <Feather name="paperclip" size={20} color="#1DA1F2" />
+            </TouchableOpacity>
+
+            <TextInput
+              className="max-h-28 flex-1 rounded-2xl bg-gray-100 px-4 py-2 text-base text-gray-900"
+              multiline
+              onChangeText={setMessageText}
+              placeholder="Message"
+              placeholderTextColor="#9CA3AF"
+              value={messageText}
+            />
+
+            <TouchableOpacity
+              className="ml-2 size-10 items-center justify-center rounded-full bg-blue-500"
+              disabled={isSending || !messageText.trim()}
+              onPress={sendTextMessage}
+            >
+              {isSending ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Feather name="send" size={18} color="#fff" />
+              )}
             </TouchableOpacity>
           </View>
-        ) : (
-          <View className="flex-1">
-            <ScrollView
-              ref={scrollViewRef}
-              className="flex-1"
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-                paddingTop: 16,
-                paddingBottom: composerHeight + composerLift + 16,
-              }}
-              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-              keyboardShouldPersistTaps="handled"
-            >
-              {messages.length === 0 ? (
-                <View className="items-center py-10">
-                  <Text className="text-gray-500 text-center">Send the first message.</Text>
-                </View>
-              ) : (
-                messages.map((message) => {
-                  const isMine = message.sender._id === currentUser?._id;
-
-                  return (
-                    <View
-                      key={message._id}
-                      className={`mb-3 flex-row ${isMine ? "justify-end" : "justify-start"}`}
-                    >
-                      <View className={`max-w-[80%] ${isMine ? "items-end" : "items-start"}`}>
-                        <View className={`rounded-2xl px-4 py-3 ${isMine ? "bg-blue-500" : "bg-gray-100"}`}>
-                          <Text className={isMine ? "text-white" : "text-gray-900"}>
-                            {message.text}
-                          </Text>
-                        </View>
-                        <Text className="text-xs text-gray-400 mt-1">
-                          {formatDate(message.createdAt)}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })
-              )}
-            </ScrollView>
-
-            <View
-              className="absolute left-0 right-0 bottom-0 border-t border-gray-100 bg-white px-4 pt-4"
-              style={{ bottom: composerLift, paddingBottom: insets.bottom }}
-              onLayout={(event) => setComposerHeight(event.nativeEvent.layout.height)}
-            >
-              <View className="flex-row items-end">
-                <View className="flex-1 mr-3">
-                  <TextInput
-                    className="border border-gray-200 rounded-lg p-3 text-base text-gray-900 bg-white max-h-28"
-                    placeholder="Type a message..."
-                    placeholderTextColor="#657786"
-                    value={messageText}
-                    onChangeText={setMessageText}
-                    editable={!isSending}
-                    multiline
-                    numberOfLines={2}
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <TouchableOpacity
-                  onPress={sendMessage}
-                  className={`size-10 rounded-full items-center justify-center ${
-                    messageText.trim() && !isSending ? "bg-blue-500" : "bg-gray-300"
-                  }`}
-                  disabled={!messageText.trim() || isSending}
-                >
-                  <Feather name="send" size={20} color="white" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
-      </View>
+        </KeyboardAvoidingView>
+      )}
     </SafeAreaView>
   );
 };

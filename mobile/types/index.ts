@@ -59,19 +59,3 @@ export interface Notification {
     createdAt: string;
 }
 
-export interface ChatMessage {
-    _id: string;
-    conversation: string;
-    sender: User;
-    text: string;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface Conversation {
-    _id: string;
-    participants: User[];
-    lastMessage?: ChatMessage | null;
-    createdAt: string;
-    updatedAt: string;
-}

@@ -1,15 +1,19 @@
 import { useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiClient, userApi } from "../utils/api";
 import { useAuth } from "@clerk/expo";
 
 export const useUserSync = () => {
     const { isSignedIn } = useAuth();
     const api = useApiClient();
+    const queryClient = useQueryClient();
 
     const syncUserMutation = useMutation({
         mutationFn: () => userApi.syncUser(api),
-        onSuccess: (response: any) => console.log("User synced successfully:", response.data.user),
+        onSuccess: (response: any) => {
+            console.log("User synced successfully:", response.data.user);
+            queryClient.invalidateQueries({ queryKey: ["authUser"] });
+        },
         onError: (error) => console.error("User sync failed:", error),
     });
 

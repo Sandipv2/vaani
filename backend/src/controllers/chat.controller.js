@@ -1,44 +1,85 @@
-import { getAuth } from "@clerk/express";
+import { clerkClient, getAuth } from "@clerk/express";
+import { StreamChat } from "stream-chat";
 import { asyncHandler } from "../config/asyncHandler.js";
-import Conversation from "../models/conversation.model.js";
-import Message from "../models/message.model.js";
+import { ENV } from "../config/env.js";
 import User from "../models/user.model.js";
 
-const userSelect = "username firstName lastName profilePicture";
+const getStreamClient = () => {
+    if (!ENV.STREAM_API_KEY || !ENV.STREAM_API_SECRET) {
+        throw new Error("Stream API credentials are not configured");
+    }
 
-const getLoggedInUser = async (req) => {
+    return StreamChat.getInstance(ENV.STREAM_API_KEY, ENV.STREAM_API_SECRET, {
+        disableCache: true,
+    });
+};
+
+const getLoggedInUser = (req) => {
     const { userId } = getAuth(req);
     return User.findOne({ clerkId: userId });
 };
 
-const populateConversation = (query) => {
-    return query
-        .populate("participants", userSelect)
-        .populate({
-            path: "lastMessage",
-            populate: {
-                path: "sender",
-                select: userSelect,
-            },
-        });
+const ensureLoggedInUser = async (req) => {
+    const { userId } = getAuth(req);
+    let user = await User.findOne({ clerkId: userId });
+
+    if (user) {
+        return user;
+    }
+
+    const clerkUser = await clerkClient.users.getUser(userId);
+    const primaryEmail = clerkUser.emailAddresses[0]?.emailAddress;
+
+    if (!primaryEmail) {
+        return null;
+    }
+
+    return User.create({
+        clerkId: userId,
+        email: primaryEmail,
+        firstName: clerkUser.firstName || "",
+        lastName: clerkUser.lastName || "",
+        username: primaryEmail.split("@")[0],
+        profilePicture: clerkUser.imageUrl || "",
+    });
 };
 
-const getConversations = asyncHandler(async (req, res) => {
-    const currentUser = await getLoggedInUser(req);
+const getDisplayName = (user) => {
+    return `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username;
+};
+
+const toStreamUser = (user) => ({
+    id: user._id.toString(),
+    name: getDisplayName(user),
+    image: user.profilePicture || undefined,
+    username: user.username,
+});
+
+const getDirectChannelId = (firstUserId, secondUserId) => {
+    return [firstUserId, secondUserId].sort().join("-");
+};
+
+const getChatToken = asyncHandler(async (req, res) => {
+    const currentUser = await ensureLoggedInUser(req);
 
     if (!currentUser) {
         return res.status(404).json({ error: "User not found" });
     }
 
-    const conversations = await populateConversation(
-        Conversation.find({ participants: currentUser._id }).sort({ updatedAt: -1 })
-    );
+    const client = getStreamClient();
+    const streamUser = toStreamUser(currentUser);
 
-    res.status(200).json({ conversations });
+    await client.upsertUser(streamUser);
+
+    res.status(200).json({
+        apiKey: ENV.STREAM_API_KEY,
+        token: client.createToken(streamUser.id),
+        user: streamUser,
+    });
 });
 
-const getOrCreateConversation = asyncHandler(async (req, res) => {
-    const currentUser = await getLoggedInUser(req);
+const getOrCreateChannel = asyncHandler(async (req, res) => {
+    const currentUser = await ensureLoggedInUser(req);
     const { targetUserId } = req.body;
 
     if (!currentUser) {
@@ -59,120 +100,46 @@ const getOrCreateConversation = asyncHandler(async (req, res) => {
         return res.status(404).json({ error: "Target user not found" });
     }
 
-    let conversation = await Conversation.findOne({
-        participants: { $all: [currentUser._id, targetUser._id], $size: 2 },
+    const client = getStreamClient();
+    const currentStreamUser = toStreamUser(currentUser);
+    const targetStreamUser = toStreamUser(targetUser);
+    const channelId = getDirectChannelId(currentStreamUser.id, targetStreamUser.id);
+    const channel = client.channel("messaging", channelId, {
+        created_by_id: currentStreamUser.id,
+        members: [currentStreamUser.id, targetStreamUser.id],
     });
 
-    if (!conversation) {
-        conversation = await Conversation.create({
-            participants: [currentUser._id, targetUser._id],
-        });
-    }
+    await client.upsertUsers([currentStreamUser, targetStreamUser]);
+    await channel.create();
 
-    const populatedConversation = await populateConversation(
-        Conversation.findById(conversation._id)
-    );
-
-    res.status(200).json({ conversation: populatedConversation });
+    res.status(200).json({
+        channelId,
+        cid: channel.cid,
+    });
 });
 
-const getMessages = asyncHandler(async (req, res) => {
+const hideChannel = asyncHandler(async (req, res) => {
     const currentUser = await getLoggedInUser(req);
-    const { conversationId } = req.params;
+    const { channelId } = req.params;
 
     if (!currentUser) {
         return res.status(404).json({ error: "User not found" });
     }
 
-    const conversation = await Conversation.findOne({
-        _id: conversationId,
-        participants: currentUser._id,
-    });
-
-    if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
+    if (!channelId) {
+        return res.status(400).json({ error: "channelId is required" });
     }
 
-    const messages = await Message.find({ conversation: conversationId })
-        .sort({ createdAt: 1 })
-        .populate("sender", userSelect);
+    const client = getStreamClient();
+    const channel = client.channel("messaging", channelId);
 
-    res.status(200).json({ messages });
-});
+    await channel.hide(currentUser._id.toString(), true);
 
-const deleteConversation = asyncHandler(async (req, res) => {
-    const currentUser = await getLoggedInUser(req);
-    const { conversationId } = req.params;
-
-    if (!currentUser) {
-        return res.status(404).json({ error: "User not found" });
-    }
-
-    const conversation = await Conversation.findOne({
-        _id: conversationId,
-        participants: currentUser._id,
-    });
-
-    if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
-    }
-
-    await Message.deleteMany({ conversation: conversation._id });
-    await Conversation.deleteOne({ _id: conversation._id });
-
-    res.status(200).json({ success: true, conversationId });
-});
-
-const sendMessage = asyncHandler(async (req, res) => {
-    const currentUser = await getLoggedInUser(req);
-    const { conversationId } = req.params;
-    const messageText = String(req.body.text || "").trim();
-
-    if (!currentUser) {
-        return res.status(404).json({ error: "User not found" });
-    }
-
-    if (!messageText) {
-        return res.status(400).json({ error: "Message text is required" });
-    }
-
-    const conversation = await Conversation.findOne({
-        _id: conversationId,
-        participants: currentUser._id,
-    });
-
-    if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
-    }
-
-    const message = await Message.create({
-        conversation: conversation._id,
-        sender: currentUser._id,
-        text: messageText,
-    });
-
-    conversation.lastMessage = message._id;
-    await conversation.save();
-
-    const populatedMessage = await Message.findById(message._id)
-        .populate("sender", userSelect);
-
-    const populatedConversation = await populateConversation(
-        Conversation.findById(conversation._id)
-    );
-
-    res.status(201).json({
-        message: populatedMessage,
-        conversation: populatedConversation,
-    });
+    res.status(200).json({ success: true, channelId });
 });
 
 export {
-    deleteConversation,
-    getConversations,
-    getMessages,
-    getOrCreateConversation,
-    sendMessage,
-    populateConversation,
-    userSelect,
+    getChatToken,
+    getOrCreateChannel,
+    hideChannel,
 };
