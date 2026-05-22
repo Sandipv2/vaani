@@ -3,7 +3,6 @@ import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import "../global.css";
 import { useEffect } from "react";
-import { Platform } from "react-native";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   disableAppSwitcherProtectionAsync,
@@ -25,10 +24,6 @@ const AppPrivacyGuard = () => {
   usePreventScreenCapture("vaani-global-privacy");
 
   useEffect(() => {
-    if (Platform.OS !== "ios") {
-      return;
-    }
-
     enableAppSwitcherProtectionAsync(0.35);
 
     return () => {
